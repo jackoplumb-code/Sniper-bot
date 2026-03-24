@@ -50,10 +50,11 @@ def get_token_data():
         pair = data["pairs"][0]
 
         return {
-            "price": float(pair.get("priceUsd", 0)),
-            "volume": float(pair.get("volume", {}).get("h24", 0)),
-            "liquidity": float(pair.get("liquidity", {}).get("usd", 0)),
-        }
+    "price": float(pair.get("priceUsd", 0)),
+    "volume": float(pair.get("volume", {}).get("h24", 0)),
+    "liquidity": float(pair.get("liquidity", {}).get("usd", 0)),
+    "price_change": float(pair.get("priceChange", {}).get("h1", 0)),
+}
 
     except Exception as e:
         print("DATA ERROR:", e)

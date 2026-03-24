@@ -93,6 +93,8 @@ while True:
 
         price = get_token_price()
 
+        execute_buy()
+
         if price is None:
             time.sleep(5)
             continue

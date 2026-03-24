@@ -3,7 +3,7 @@ import requests
 import os
 
 # ====== USER CONFIG ======
-WALLET_PUBLIC_KEY = "PASTE_YOUR_WALLET_HERE"
+WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
 TOKEN_ADDRESS = os.getenv("TOKEN_ADDRESS")  # set in Railway
 
 BUY_PERCENT = 0.05  # 5% per trade (safe start)

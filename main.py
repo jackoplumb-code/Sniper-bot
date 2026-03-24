@@ -161,7 +161,7 @@ def execute_buy():
 
         print(f"REAL BUY: {amount} SOL")
 
-        url = "https://quote-api.jup.ag/v6/quote"
+        url = "https://api.jup.ag/v6/quote"
 
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",

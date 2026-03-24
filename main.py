@@ -2,6 +2,14 @@ import time
 import requests
 import os
 
+MIN_VOLUME = 50000
+MIN_LIQUIDITY = 10000
+MIN_PRICE_CHANGE = 0.1  # 10%
+
+COOLDOWN_SECONDS = 60
+
+last_trade_time = 0
+
 TOKEN_ADDRESS = os.getenv("TOKEN_ADDRESS")
 
 CONFIG = {

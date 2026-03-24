@@ -2,6 +2,8 @@ import time
 import requests
 import os
 
+WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
+
 MIN_VOLUME = 50000
 MIN_LIQUIDITY = 10000
 MIN_PRICE_CHANGE = -1
@@ -22,6 +24,26 @@ CONFIG = {
     "MIN_SCORE": 60
 }
 
+def get_sol_balance():
+    url = "https://api.mainnet-beta.solana.com"
+    
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getBalance",
+        "params": [WALLET_PUBLIC_KEY]
+    }
+
+    response = requests.post(url, json=payload)
+    data = response.json()
+
+    lamports = data["result"]["value"]
+    return lamports / 1e9
+
+def calculate_buy_amount():
+    balance = get_sol_balance()
+    return balance * 0.1  # 10% of wallet
+    
 STATE = {
     "entry_price": None,
     "highest_price": None,

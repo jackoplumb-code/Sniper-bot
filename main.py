@@ -98,7 +98,7 @@ while True:
             continue
 
         # BUY LOGIC (simple for now)
-        if not STATE["in_position"]:
+        if true: STATE["in_position"]:
             success = execute_buy()
 
             if success:

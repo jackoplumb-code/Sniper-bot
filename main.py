@@ -71,7 +71,25 @@ def score_token(data):
     return score
 
 def should_enter(data):
-    return score_token(data) >= CONFIG["MIN_SCORE"]
+    global last_trade_time
+
+    now = time.time()
+
+    # cooldown (prevents spam trades)
+    if now - last_trade_time < COOLDOWN_SECONDS:
+        return False
+
+    # strong filters
+    if data["volume"] < MIN_VOLUME:
+        return False
+
+    if data["liquidity"] < MIN_LIQUIDITY:
+        return False
+
+    if data["price_change"] < MIN_PRICE_CHANGE:
+        return False
+
+    return True
 
 def on_buy(price):
     STATE["entry_price"] = price

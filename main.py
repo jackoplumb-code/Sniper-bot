@@ -95,9 +95,8 @@ while True:
         price = get_token_price()
 
         if price is None:
-    print("⚠️ Price is None, forcing test buy...")
-
-        # FORCE TEST BUY
+             print("⚠️ Price is None, forcing test buy...")
+        
         if True:
             success = execute_buy()
 

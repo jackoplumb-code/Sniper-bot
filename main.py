@@ -27,14 +27,26 @@ STATE = {
 def get_token_data():
     try:
         url = f"https://api.dexscreener.com/latest/dex/tokens/{TOKEN_ADDRESS}"
-        res = requests.get(url, timeout=10).json()
-        pair = res["pairs"][0]
+        res = requests.get(url, timeout=10)
+
+        if res.status_code != 200:
+            print("Bad response from API")
+            return None
+
+        data = res.json()
+
+        if not data or "pairs" not in data or not data["pairs"]:
+            print("No pairs found")
+            return None
+
+        pair = data["pairs"][0]
 
         return {
-            "price": float(pair["priceUsd"]),
-            "volume": float(pair["volume"]["h24"]),
-            "liquidity": float(pair["liquidity"]["usd"]),
+            "price": float(pair.get("priceUsd", 0)),
+            "volume": float(pair.get("volume", {}).get("h24", 0)),
+            "liquidity": float(pair.get("liquidity", {}).get("usd", 0)),
         }
+
     except Exception as e:
         print("DATA ERROR:", e)
         return None

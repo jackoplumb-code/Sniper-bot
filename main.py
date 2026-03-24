@@ -87,19 +87,18 @@ while True:
         print("Bot running...")
 
         # cooldown
-        if time.time() - STATE["last_trade_time"] < COOLDOWN_SECONDS:
+        if time.time() - STATE["last_trade_time"] < 60:
             time.sleep(5)
             continue
 
+        # get price
         price = get_token_price()
-
-        execute_buy()
 
         if price is None:
             time.sleep(5)
             continue
 
-        # BUY LOGIC (simple for now)
+        # FORCE TEST BUY
         if True:
             success = execute_buy()
 

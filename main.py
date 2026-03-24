@@ -92,11 +92,15 @@ def should_enter(data):
     return True
 
 def on_buy(price):
+    global last_trade_time
+
     STATE["entry_price"] = price
     STATE["highest_price"] = price
     STATE["stop_price"] = price * (1 - CONFIG["TRAILING_STOP"])
     STATE["entry_time"] = time.time()
     STATE["partial_sold"] = False
+
+    last_trade_time = time.time()
 
 def update_trailing(price):
     if price > STATE["highest_price"]:

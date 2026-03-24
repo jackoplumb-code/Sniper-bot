@@ -130,11 +130,87 @@ def should_partial(price):
 # ================= FAKE EXECUTION =================
 
 def execute_buy():
-    print("FAKE BUY")
-    return get_token_data()["price"]
+    try:
+        amount = calculate_buy_amount()
+
+        if amount <= 0:
+            print("No balance to buy")
+            return None
+
+        print(f"REAL BUY: {amount} SOL")
+
+        url = "https://quote-api.jup.ag/v6/quote"
+
+        params = {
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": TOKEN_ADDRESS,
+            "amount": int(amount * 1e9),
+            "slippageBps": 1000
+        }
+
+        quote = requests.get(url, params=params).json()
+
+        swap = requests.post(
+            "https://quote-api.jup.ag/v6/swap",
+            json={
+                "quoteResponse": quote,
+                "userPublicKey": WALLET_ADDRESS,
+                "wrapAndUnwrapSol": True
+            }
+        ).json()
+
+        tx_bytes = bytes.fromhex(swap["swapTransaction"])
+        tx = Transaction.deserialize(tx_bytes)
+
+        tx.sign(keypair)
+
+        result = client.send_transaction(tx, keypair)
+
+        print("BUY SUCCESS:", result)
+
+        return get_token_data()["price"]
+
+    except Exception as e:
+        print("BUY ERROR:", e)
+        return None
 
 def execute_sell(percent, reason):
-    print(f"FAKE SELL {percent*100}% | {reason}")
+    try:
+        print(f"REAL SELL: {percent*100}% | {reason}")
+
+        amount = int(0.01 * 1e9)  # safe small sell for now
+
+        url = "https://quote-api.jup.ag/v6/quote"
+
+        params = {
+            "inputMint": TOKEN_ADDRESS,
+            "outputMint": "So11111111111111111111111111111111111111112",
+            "amount": amount,
+            "slippageBps": 1000
+        }
+
+        quote = requests.get(url, params=params).json()
+
+        swap = requests.post(
+            "https://quote-api.jup.ag/v6/swap",
+            json={
+                "quoteResponse": quote,
+                "userPublicKey": WALLET_ADDRESS,
+                "wrapAndUnwrapSol": True
+            }
+        ).json()
+
+        tx_bytes = bytes.fromhex(swap["swapTransaction"])
+        tx = Transaction.deserialize(tx_bytes)
+
+        tx.sign(keypair)
+
+        result = client.send_transaction(tx, keypair)
+
+        print("SELL SUCCESS:", result)
+
+    except Exception as e:
+        print("SELL ERROR:", e)
 
 # ================= MAIN LOOP =================
 

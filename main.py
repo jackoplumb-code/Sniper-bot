@@ -215,6 +215,8 @@ def execute_sell(percent, reason):
 # ================= MAIN LOOP =================
 
 while True:
+    print("Bot running...")
+    
     try:
         data = get_token_data()
 

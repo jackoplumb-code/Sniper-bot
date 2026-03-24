@@ -2,269 +2,111 @@ import time
 import requests
 import os
 
-WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
+# ====== USER CONFIG ======
+WALLET_PUBLIC_KEY = "PASTE_YOUR_WALLET_HERE"
+TOKEN_ADDRESS = os.getenv("TOKEN_ADDRESS")  # set in Railway
 
-MIN_VOLUME = 50000
-MIN_LIQUIDITY = 10000
-MIN_PRICE_CHANGE = -1
-
+BUY_PERCENT = 0.05  # 5% per trade (safe start)
 COOLDOWN_SECONDS = 60
 
-last_trade_time = 0
-
-TOKEN_ADDRESS = os.getenv("TOKEN_ADDRESS")
-
-CONFIG = {
-    "TRAILING_STOP": 0.15,
-    "STOP_LOSS": 0.85,
-    "PARTIAL_TP": 1.5,
-    "MAX_HOLD_TIME": 180,
-    "MIN_LIQUIDITY": 5000,
-    "MIN_VOLUME": 15000,
-    "MIN_SCORE": 60
-}
-
-def get_sol_balance():
-    url = "https://api.mainnet-beta.solana.com"
-    
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getBalance",
-        "params": [WALLET_PUBLIC_KEY]
-    }
-
-    response = requests.post(url, json=payload)
-    data = response.json()
-
-    lamports = data["result"]["value"]
-    return lamports / 1e9
-
-def calculate_buy_amount():
-    balance = get_sol_balance()
-    return balance * 0.1  # 10% of wallet
-    
+# ====== STATE ======
 STATE = {
-    "entry_price": None,
-    "highest_price": None,
-    "stop_price": None,
-    "entry_time": None,
-    "partial_sold": False
+    "in_position": False,
+    "last_trade_time": 0
 }
 
-# ================= DATA =================
-
-def get_token_data():
+# ====== GET SOL BALANCE ======
+def get_sol_balance():
     try:
-        url = f"https://api.dexscreener.com/latest/dex/tokens/{TOKEN_ADDRESS}"
-        res = requests.get(url, timeout=10)
+        url = "https://api.mainnet-beta.solana.com"
 
-        if res.status_code != 200:
-            print("Bad response from API")
-            return None
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getBalance",
+            "params": [WALLET_PUBLIC_KEY]
+        }
 
-        data = res.json()
+        response = requests.post(url, json=payload)
+        data = response.json()
 
-        if not data or "pairs" not in data or not data["pairs"]:
-            print("No pairs found")
-            return None
-
-        pair = data["pairs"][0]
-
-        return {
-    "price": float(pair.get("priceUsd", 0)),
-    "volume": float(pair.get("volume", {}).get("h24", 0)),
-    "liquidity": float(pair.get("liquidity", {}).get("usd", 0)),
-    "price_change": float(pair.get("priceChange", {}).get("h1", 0)),
-}
+        lamports = data["result"]["value"]
+        return lamports / 1e9
 
     except Exception as e:
-        print("DATA ERROR:", e)
+        print("BALANCE ERROR:", e)
         return None
 
-# ================= LOGIC =================
+# ====== CALCULATE BUY ======
+def calculate_buy_amount():
+    balance = get_sol_balance()
 
-def score_token(data):
-    score = 0
-    if data["volume"] > CONFIG["MIN_VOLUME"]:
-        score += 30
-    if data["liquidity"] > CONFIG["MIN_LIQUIDITY"]:
-        score += 30
-    return score
+    if not balance:
+        print("Using fallback buy")
+        return 0.01
 
-def should_enter(data):
-    global last_trade_time
+    return balance * BUY_PERCENT
 
-    now = time.time()
-
-    # cooldown (prevents spam trades)
-    if now - last_trade_time < COOLDOWN_SECONDS:
-        return False
-
-    # strong filters
-    if data["volume"] < MIN_VOLUME:
-        return False
-
-    if data["liquidity"] < MIN_LIQUIDITY:
-        return False
-
-    if data["price_change"] < MIN_PRICE_CHANGE:
-        return False
-
-    return True
-
-def on_buy(price):
-    global last_trade_time
-
-    STATE["entry_price"] = price
-    STATE["highest_price"] = price
-    STATE["stop_price"] = price * (1 - CONFIG["TRAILING_STOP"])
-    STATE["entry_time"] = time.time()
-    STATE["partial_sold"] = False
-
-    last_trade_time = time.time()
-
-def update_trailing(price):
-    if price > STATE["highest_price"]:
-        STATE["highest_price"] = price
-        STATE["stop_price"] = price * (1 - CONFIG["TRAILING_STOP"])
-
-def should_exit(data):
-    price = data["price"]
-
-    if price <= STATE["entry_price"] * CONFIG["STOP_LOSS"]:
-        return "stop_loss"
-
-    if price <= STATE["stop_price"]:
-        return "trailing_stop"
-
-    if time.time() - STATE["entry_time"] > CONFIG["MAX_HOLD_TIME"]:
-        return "time_exit"
-
-    return None
-
-def should_partial(price):
-    return (
-        not STATE["partial_sold"]
-        and price >= STATE["entry_price"] * CONFIG["PARTIAL_TP"]
-    )
-
-# ================= FAKE EXECUTION =================
-
-def execute_buy():
+# ====== GET TOKEN PRICE ======
+def get_token_price():
     try:
-        amount = calculate_buy_amount()
-
-        if amount <= 0:
-            print("No balance to buy")
-            return None
-
-        print(f"REAL BUY: {amount} SOL")
-
         url = "https://api.jup.ag/v6/quote"
 
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",
             "outputMint": TOKEN_ADDRESS,
-            "amount": int(amount * 1e9),
+            "amount": 10000000,  # 0.01 SOL
             "slippageBps": 1000
         }
 
-        quote = requests.get(url, params=params).json()
+        res = requests.get(url, params=params)
+        data = res.json()
 
-        swap = requests.post(
-            "https://quote-api.jup.ag/v6/swap",
-            json={
-                "quoteResponse": quote,
-                "userPublicKey": WALLET_ADDRESS,
-                "wrapAndUnwrapSol": True
-            }
-        ).json()
-
-        tx_bytes = bytes.fromhex(swap["swapTransaction"])
-        tx = Transaction.deserialize(tx_bytes)
-
-        tx.sign(keypair)
-
-        result = client.send_transaction(tx, keypair)
-
-        print("BUY SUCCESS:", result)
-
-        return get_token_data()["price"]
+        return float(data["outAmount"]) if "outAmount" in data else None
 
     except Exception as e:
-        print("BUY ERROR:", e)
+        print("PRICE ERROR:", e)
         return None
 
-def execute_sell(percent, reason):
-    try:
-        print(f"REAL SELL: {percent*100}% | {reason}")
+# ====== EXECUTE BUY (SIMULATED STILL) ======
+def execute_buy():
+    amount = calculate_buy_amount()
+    print(f"REAL BUY: {amount} SOL")
 
-        amount = int(0.01 * 1e9)  # safe small sell for now
+    # ⚠️ STILL SIMULATED (no real tx yet)
+    return True
 
-        url = "https://quote-api.jup.ag/v6/quote"
+# ====== EXECUTE SELL (SIMULATED) ======
+def execute_sell():
+    print("SELL (simulated)")
+    return True
 
-        params = {
-            "inputMint": TOKEN_ADDRESS,
-            "outputMint": "So11111111111111111111111111111111111111112",
-            "amount": amount,
-            "slippageBps": 1000
-        }
-
-        quote = requests.get(url, params=params).json()
-
-        swap = requests.post(
-            "https://quote-api.jup.ag/v6/swap",
-            json={
-                "quoteResponse": quote,
-                "userPublicKey": WALLET_ADDRESS,
-                "wrapAndUnwrapSol": True
-            }
-        ).json()
-
-        tx_bytes = bytes.fromhex(swap["swapTransaction"])
-        tx = Transaction.deserialize(tx_bytes)
-
-        tx.sign(keypair)
-
-        result = client.send_transaction(tx, keypair)
-
-        print("SELL SUCCESS:", result)
-
-    except Exception as e:
-        print("SELL ERROR:", e)
-
-# ================= MAIN LOOP =================
-
+# ====== MAIN LOOP ======
 while True:
-    print("Bot running...")
-    
     try:
-        data = get_token_data()
+        print("Bot running...")
 
-        if not data:
-            time.sleep(2)
+        # cooldown
+        if time.time() - STATE["last_trade_time"] < COOLDOWN_SECONDS:
+            time.sleep(5)
             continue
 
-        if STATE["entry_price"] is None:
-            if should_enter(data):
-                price = execute_buy()
-                on_buy(price)
+        price = get_token_price()
 
-        else:
-            update_trailing(data["price"])
+        if price is None:
+            time.sleep(5)
+            continue
 
-            if should_partial(data["price"]):
-                execute_sell(0.5, "partial_tp")
-                STATE["partial_sold"] = True
+        # BUY LOGIC (simple for now)
+        if not STATE["in_position"]:
+            success = execute_buy()
 
-            reason = should_exit(data)
-            if reason:
-                execute_sell(1.0, reason)
-                STATE["entry_price"] = None
+            if success:
+                STATE["in_position"] = True
+                STATE["last_trade_time"] = time.time()
 
-        time.sleep(1)
+        time.sleep(5)
 
     except Exception as e:
         print("MAIN LOOP ERROR:", e)
-        time.sleep(3)
+        time.sleep(5)

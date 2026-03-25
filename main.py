@@ -109,7 +109,7 @@ def main():
     app.add_handler(CommandHandler("stop", stop_cmd))
     app.add_handler(CommandHandler("status", status_cmd))
 
-    threading.Thread(target=trading_loop).start()
+    threading.Thread(target=trading_loop, daemon=True).start()
 
     print("Telegram bot running...")
     app.run_polling()

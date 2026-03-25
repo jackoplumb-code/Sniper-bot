@@ -5,7 +5,7 @@ import requests
 TOKEN_ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6nBzT5d3KkJpump"  # BONK
 WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
 
-BUY_PERCENT = 0.1  # 10%
+BUY_PERCENT = 0.1   # 10%
 COOLDOWN = 60
 
 # ===== STATE =====
@@ -13,6 +13,39 @@ STATE = {
     "last_trade_time": 0,
     "in_position": False
 }
+
+# ===== GET TOKEN PRICE =====
+def get_token_price():
+    try:
+        url = "https://api.jup.ag/v6/quote"
+
+        params = {
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": TOKEN_ADDRESS,
+            "amount": 100000000,  # 0.1 SOL
+            "slippageBps": 1000
+        }
+
+        res = requests.get(
+            url,
+            params=params,
+            headers={"accept": "application/json"},
+            timeout=10
+        )
+
+        data = res.json()
+        print("JUP RESPONSE:", data)
+
+        if "data" not in data or len(data["data"]) == 0:
+            print("No route found")
+            return None
+
+        return float(data["data"][0]["outAmount"]) / 1e9
+
+    except Exception as e:
+        print("PRICE ERROR:", e)
+        return None
+
 
 # ===== GET SOL BALANCE =====
 def get_sol_balance():
@@ -40,7 +73,8 @@ def get_sol_balance():
         print("BALANCE ERROR:", e)
         return None
 
-# ===== CALCULATE BUY AMOUNT =====
+
+# ===== CALCULATE BUY =====
 def calculate_buy_amount():
     balance = get_sol_balance()
 
@@ -50,45 +84,16 @@ def calculate_buy_amount():
 
     return balance * BUY_PERCENT
 
-# ===== GET TOKEN PRICE (JUPITER FIXED) =====
-try:
-    url = "https://api.jup.ag/v6/quote"
 
-    params = {
-        "inputMint": "So11111111111111111111111111111111111111112",
-        "outputMint": TOKEN_ADDRESS,
-        "amount": 100000000,
-        "slippageBps": 1000
-    }
-
-    res = requests.get(
-        url,
-        params=params,
-        headers={"accept": "application/json"},
-        timeout=10
-    )
-
-    data = res.json()
-    print("JUP RESPONSE:", data)
-
-    if "data" not in data or len(data["data"]) == 0:
-        print("No route found")
-        return None
-
-    return float(data["data"][0]["outAmount"]) / 1e9
-
-except Exception as e:
-    print("PRICE ERROR:", e)
-    return None
-# ===== EXECUTE BUY (TEMP DISABLED SWAP) =====
+# ===== EXECUTE BUY (SAFE MODE) =====
 def execute_buy():
     amount = calculate_buy_amount()
     print(f"🚀 REAL BUY ATTEMPT: {amount} SOL")
 
-    # Swap disabled for now
+    # SAFE MODE (no real trades yet)
     print("⚠️ Swap disabled (testing mode)")
-
     return True
+
 
 # ===== MAIN LOOP =====
 while True:
@@ -107,7 +112,7 @@ while True:
             time.sleep(5)
             continue
 
-        # simple buy logic (for testing)
+        # BUY LOGIC (test mode always true)
         success = execute_buy()
 
         if success:

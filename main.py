@@ -18,7 +18,7 @@ BOT_RUNNING = False
 # ===== GET TOKEN PRICE =====
 def get_token_price(token_address):
     try:
-        url = "https://api.jup.ag/v6/quote"
+        url = "https://quote-api.jup.ag/v6/quote"
 
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",

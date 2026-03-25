@@ -62,9 +62,6 @@ def get_token_price():
         res = requests.get(url, params=params)
         data = res.json()
 
-        res = requests.get(url, params=params)
-data = res.json()
-
 if "data" not in data or len(data["data"]) == 0:
     print("No route found")
     return None

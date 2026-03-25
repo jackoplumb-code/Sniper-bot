@@ -2,7 +2,7 @@ import time
 import requests
 
 # ===== CONFIG =====
-TOKEN_ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"  # BONK (test token)
+TOKEN_ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6nBzT5d3KkJpump"  # BONK
 WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
 
 BUY_PERCENT = 0.1  # 10%

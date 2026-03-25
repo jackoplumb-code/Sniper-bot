@@ -273,38 +273,39 @@ def trading_loop():
                 time.sleep(2)
                 continue
 
-            manage_positions()
-
             print("🔍 Scanning tokens...")
 
-for token in TOKENS:
-    print(f"Checking token: {token}")
+            manage_positions()
 
-    if token in POSITIONS:
-        print("Already in position, skipping")
-        continue
+            for token in TOKENS:
+                print(f"Checking token: {token}")
 
-    price = get_token_price(token)
-    print(f"Price: {price}")
+                if token in POSITIONS:
+                    print("Already in position")
+                    continue
 
-    if price is None:
-        print("❌ Price is None, skipping")
-        continue
+                price = get_token_price(token)
+                print(f"Price: {price}")
 
-    safe = is_token_safe(token)
-    print(f"Safe check: {safe}")
+                if price is None:
+                    print("❌ No price")
+                    continue
 
-    if not safe:
-        print("❌ Token not safe")
-        continue
+                safe = is_token_safe(token)
+                print(f"Safe: {safe}")
 
-    print("🚀 BUYING NOW")
-    execute_buy(token)
-    
+                if not safe:
+                    print("❌ Not safe")
+                    continue
+
+                print("🚀 BUYING")
+                execute_buy(token)
+
             time.sleep(5)
 
         except Exception as e:
-            print("ERROR:", e)
+            print("MAIN LOOP ERROR:", e)
+            time.sleep(5)
 
 # ===== TELEGRAM =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):

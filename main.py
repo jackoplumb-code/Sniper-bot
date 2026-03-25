@@ -62,7 +62,7 @@ def get_token_price():
         res = requests.get(url, params=params)
         data = res.json()
 
-        return float(data["outAmount"]) if "outAmount" in data else None
+        return float(data["outAmount"]) / 1e9
 
     except Exception as e:
         print("PRICE ERROR:", e)
@@ -97,8 +97,7 @@ while True:
         if price is None:
              print("⚠️ Price is None, forcing test buy...")
         
-        if True:
-            success = execute_buy()
+        if not STATE["in_position"]:
 
             if success:
                 STATE["in_position"] = True

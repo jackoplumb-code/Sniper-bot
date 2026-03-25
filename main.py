@@ -5,16 +5,10 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
 import base58
-from solana.rpc.api import Client
-from solders.keypair import Keypair
 
 # wallet setup 
-RPC_URL = "https://api.mainnet-beta.solana.com"
 
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
-
-client = Client(RPC_URL)
-wallet = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
 
 # ===== CONFIG =====
 TELEGRAM_TOKEN = "8394510966:AAGbpFgVYnbd8UlkN2u_BOvA-SI1QFk1xtA"

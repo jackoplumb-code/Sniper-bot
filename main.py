@@ -62,7 +62,14 @@ def get_token_price():
         res = requests.get(url, params=params)
         data = res.json()
 
-        return float(data["data"][0]["outAmount"]) / 1e9
+        res = requests.get(url, params=params)
+data = res.json()
+
+if "data" not in data or len(data["data"]) == 0:
+    print("No route found")
+    return None
+
+return float(data["data"][0]["outAmount"]) / 1e9
 
     except Exception as e:
         print("PRICE ERROR:", e)

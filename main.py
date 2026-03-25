@@ -275,19 +275,32 @@ def trading_loop():
 
             manage_positions()
 
-            for token in TOKENS:
-                if token in POSITIONS:
-                    continue
+            print("🔍 Scanning tokens...")
 
-                price = get_token_price(token)
-                if price is None:
-                    continue
+for token in TOKENS:
+    print(f"Checking token: {token}")
 
-                if not is_token_safe(token):
-                    continue
+    if token in POSITIONS:
+        print("Already in position, skipping")
+        continue
 
-                execute_buy(token)
+    price = get_token_price(token)
+    print(f"Price: {price}")
 
+    if price is None:
+        print("❌ Price is None, skipping")
+        continue
+
+    safe = is_token_safe(token)
+    print(f"Safe check: {safe}")
+
+    if not safe:
+        print("❌ Token not safe")
+        continue
+
+    print("🚀 BUYING NOW")
+    execute_buy(token)
+    
             time.sleep(5)
 
         except Exception as e:

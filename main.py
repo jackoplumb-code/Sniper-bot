@@ -30,12 +30,16 @@ def get_sol_balance():
         res = requests.post(url, json=payload)
         data = res.json()
 
+        if "result" not in data:
+            print("BALANCE ERROR:", data)
+            return None
+
         lamports = data["result"]["value"]
         return lamports / 1e9
 
     except Exception as e:
         print("BALANCE ERROR:", e)
-        return 0
+        return None
 
 
 # ===== CALCULATE BUY =====
@@ -78,7 +82,7 @@ def get_token_price():
 # ===== JUPITER SWAP (SAFE MODE) =====
 def execute_jupiter_swap(amount_sol):
     try:
-        url = "https://quote-api.jup.ag/v6/swap"
+        url = "https://api.jup.ag/v6/swap"
 
         payload = {
             "inputMint": "So11111111111111111111111111111111111111112",

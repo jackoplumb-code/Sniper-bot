@@ -268,21 +268,22 @@ def manage_positions():
 
 # ===== LOOP =====
 def trading_loop():
-    global BOT_RUNNING
 
-    print("🚀 Trading loop STARTED")  # <-- ADD THIS
+    print("🚀 Trading loop STARTED")
 
     while True:
         try:
-            print("🔁 Loop tick")  # <-- ADD THIS
+            print("🔁 Loop tick")
 
             if not BOT_RUNNING["value"]:
                 print("⏸ Bot paused")
                 time.sleep(2)
                 continue
 
-        print("🔥 BOT RUNNING:", BOT_RUNNING["value"])
-        print("🔍 Scanning tokens...")
+            # ✅ ADD THIS LINE RIGHT HERE
+            print("🔥 BOT RUNNING:", BOT_RUNNING["value"])
+
+            print("🔍 Scanning tokens...")
 
             manage_positions()
 

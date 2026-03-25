@@ -1,30 +1,19 @@
 import time
 import requests
-import os
 import threading
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# ===== CONFIG =====
+# ===== CONFIG (PASTE YOUR VALUES HERE) =====
+TELEGRAM_TOKEN = "8394510966:AAGbpFgVYnbd8UlkN2u_BOvA-SI1QFk1xtA"
+CHAT_ID = 6736189155
+WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
+
 TOKENS = [
     "DezXAZ8z7PnrnRJjz3wXBoRgixCa6s7YaB1pPB263",  # BONK
 ]
 
-WALLET_PUBLIC_KEY = os.getenv("WALLET_PUBLIC_KEY")
-
-BUY_PERCENT = 0.1
-COOLDOWN = 60
-
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = int(os.getenv("CHAT_ID"))
-
 BOT_RUNNING = False
-
-# ===== STATE =====
-STATE = {
-    "last_trade_time": 0,
-    "in_position": False
-}
 
 # ===== GET TOKEN PRICE =====
 def get_token_price(token_address):
@@ -61,48 +50,10 @@ def get_token_price(token_address):
         print("PRICE ERROR:", e)
         return None
 
-# ===== GET BALANCE =====
-def get_sol_balance():
-    try:
-        url = "https://api.mainnet-beta.solana.com"
-
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getBalance",
-            "params": [WALLET_PUBLIC_KEY]
-        }
-
-        res = requests.post(url, json=payload)
-        data = res.json()
-
-        if "result" not in data:
-            print("BALANCE ERROR:", data)
-            return None
-
-        return data["result"]["value"] / 1e9
-
-    except Exception as e:
-        print("BALANCE ERROR:", e)
-        return None
-
-# ===== CALCULATE BUY =====
-def calculate_buy_amount():
-    balance = get_sol_balance()
-
-    if not balance:
-        return 0.01
-
-    return balance * BUY_PERCENT
-
 # ===== EXECUTE BUY (SAFE MODE) =====
 def execute_buy(token):
-    amount = calculate_buy_amount()
-    print(f"🚀 BUY SIGNAL: {token} | {amount} SOL")
-
-    # SAFE MODE
+    print(f"🚀 BUY SIGNAL: {token}")
     print("⚠️ Trade not executed (testing mode)")
-
     return True
 
 # ===== TELEGRAM COMMANDS =====
@@ -111,18 +62,16 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     BOT_RUNNING = True
     await update.message.reply_text("🚀 Bot started")
 
-
 async def stop_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global BOT_RUNNING
     BOT_RUNNING = False
     await update.message.reply_text("🛑 Bot stopped")
 
-
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = "RUNNING" if BOT_RUNNING else "STOPPED"
     await update.message.reply_text(f"📊 Status: {status}")
 
-# ===== MAIN TRADING LOOP =====
+# ===== MAIN LOOP =====
 def trading_loop():
     global BOT_RUNNING
 
@@ -143,12 +92,8 @@ def trading_loop():
                     continue
 
                 print(f"VALID TOKEN → {token}")
-
-                success = execute_buy(token)
-
-                if success:
-                    STATE["last_trade_time"] = time.time()
-                    time.sleep(10)
+                execute_buy(token)
+                time.sleep(10)
 
             time.sleep(5)
 
@@ -156,7 +101,7 @@ def trading_loop():
             print("MAIN LOOP ERROR:", e)
             time.sleep(5)
 
-# ===== MAIN =====
+# ===== START BOT =====
 def main():
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
@@ -168,7 +113,6 @@ def main():
 
     print("Telegram bot running...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()

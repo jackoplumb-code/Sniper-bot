@@ -1,9 +1,8 @@
 import time
 import requests
-import os
 
 # ===== CONFIG =====
-TOKEN_ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+TOKEN_ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"  # BONK (test token)
 WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
 
 BUY_PERCENT = 0.1  # 10%
@@ -41,8 +40,7 @@ def get_sol_balance():
         print("BALANCE ERROR:", e)
         return None
 
-
-# ===== CALCULATE BUY =====
+# ===== CALCULATE BUY AMOUNT =====
 def calculate_buy_amount():
     balance = get_sol_balance()
 
@@ -52,16 +50,15 @@ def calculate_buy_amount():
 
     return balance * BUY_PERCENT
 
-
-# ===== GET TOKEN PRICE =====
+# ===== GET TOKEN PRICE (JUPITER FIXED) =====
 def get_token_price():
     try:
         url = "https://api.jup.ag/v6/quote"
 
         params = {
-            "inputMint": "So11111111111111111111111111111111111111112",
+            "inputMint": "So11111111111111111111111111111111111111112",  # SOL
             "outputMint": TOKEN_ADDRESS,
-            "amount": 100000000,
+            "amount": 100000000,  # 0.1 SOL (helps routing)
             "slippageBps": 1000
         }
 
@@ -78,46 +75,15 @@ def get_token_price():
         print("PRICE ERROR:", e)
         return None
 
-
-# ===== JUPITER SWAP (SAFE MODE) =====
-def execute_jupiter_swap(amount_sol):
-    try:
-        url = "https://api.jup.ag/v6/swap"
-
-        payload = {
-            "inputMint": "So11111111111111111111111111111111111111112",
-            "outputMint": TOKEN_ADDRESS,
-            "amount": int(amount_sol * 1e9),
-            "slippageBps": 1000,
-            "userPublicKey": WALLET_PUBLIC_KEY,
-            "wrapAndUnwrapSol": True
-        }
-
-        res = requests.post(url, json=payload)
-        data = res.json()
-
-        if "swapTransaction" not in data:
-            print("Swap failed:", data)
-            return False
-
-        print("✅ Swap transaction created (NOT SENT YET)")
-        return True
-
-    except Exception as e:
-        print("SWAP ERROR:", e)
-        return False
-
-
-# ===== EXECUTE BUY =====
+# ===== EXECUTE BUY (TEMP DISABLED SWAP) =====
 def execute_buy():
     amount = calculate_buy_amount()
-
     print(f"🚀 REAL BUY ATTEMPT: {amount} SOL")
 
-    success = execute_jupiter_swap(amount)
+    # Swap disabled for now
+    print("⚠️ Swap disabled (testing mode)")
 
-    return success
-
+    return True
 
 # ===== MAIN LOOP =====
 while True:
@@ -129,14 +95,20 @@ while True:
             time.sleep(5)
             continue
 
-        # get price
         price = get_token_price()
 
         if price is None:
             print("⚠️ Price is None, forcing test buy...")
             success = execute_buy()
-        else:
-            success = execute_buy()
+
+            if success:
+                STATE["last_trade_time"] = time.time()
+
+            time.sleep(5)
+            continue
+
+        # simple buy logic (for testing)
+        success = execute_buy()
 
         if success:
             STATE["in_position"] = True

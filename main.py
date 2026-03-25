@@ -41,7 +41,7 @@ def get_token_price(token_address):
         print("JUP RESPONSE:", data)
 
         if "data" not in data or len(data["data"]) == 0:
-            print(f"No route for {token_address}")
+            print(f"❌ No route for {token_address}")
             return None
 
         return float(data["data"][0]["outAmount"]) / 1e9
@@ -50,11 +50,56 @@ def get_token_price(token_address):
         print("PRICE ERROR:", e)
         return None
 
+
+# ===== RUG FILTER (SAFETY CHECK) =====
+def is_token_safe(token):
+    try:
+        url = "https://api.mainnet-beta.solana.com"
+
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getAccountInfo",
+            "params": [
+                token,
+                {"encoding": "jsonParsed"}
+            ]
+        }
+
+        res = requests.post(url, json=payload)
+        data = res.json()
+
+        if "result" not in data or not data["result"]["value"]:
+            print("❌ Token not found")
+            return False
+
+        info = data["result"]["value"]["data"]["parsed"]["info"]
+
+        mint_authority = info.get("mintAuthority")
+        freeze_authority = info.get("freezeAuthority")
+
+        if mint_authority is not None:
+            print("🚫 Mint still enabled (RUG RISK)")
+            return False
+
+        if freeze_authority is not None:
+            print("🚫 Freeze still enabled (RUG RISK)")
+            return False
+
+        print("✅ Token safe")
+        return True
+
+    except Exception as e:
+        print("SAFETY CHECK ERROR:", e)
+        return False
+
+
 # ===== EXECUTE BUY (SAFE MODE) =====
 def execute_buy(token):
     print(f"🚀 BUY SIGNAL: {token}")
     print("⚠️ Trade not executed (testing mode)")
     return True
+
 
 # ===== TELEGRAM COMMANDS =====
 async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -62,16 +107,19 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     BOT_RUNNING = True
     await update.message.reply_text("🚀 Bot started")
 
+
 async def stop_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global BOT_RUNNING
     BOT_RUNNING = False
     await update.message.reply_text("🛑 Bot stopped")
 
+
 async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = "RUNNING" if BOT_RUNNING else "STOPPED"
     await update.message.reply_text(f"📊 Status: {status}")
 
-# ===== MAIN LOOP =====
+
+# ===== MAIN TRADING LOOP =====
 def trading_loop():
     global BOT_RUNNING
 
@@ -81,18 +129,25 @@ def trading_loop():
                 time.sleep(2)
                 continue
 
-            print("Scanning tokens...")
+            print("🔎 Scanning tokens...")
 
             for token in TOKENS:
-                print(f"Checking: {token}")
+                print(f"\nChecking: {token}")
 
                 price = get_token_price(token)
 
                 if price is None:
                     continue
 
-                print(f"VALID TOKEN → {token}")
+                # 🔥 SAFETY CHECK
+                if not is_token_safe(token):
+                    print(f"🚫 Skipping unsafe token: {token}")
+                    continue
+
+                print(f"🔥 VALID TOKEN → {token}")
+
                 execute_buy(token)
+
                 time.sleep(10)
 
             time.sleep(5)
@@ -100,6 +155,7 @@ def trading_loop():
         except Exception as e:
             print("MAIN LOOP ERROR:", e)
             time.sleep(5)
+
 
 # ===== START BOT =====
 def main():
@@ -111,8 +167,9 @@ def main():
 
     threading.Thread(target=trading_loop, daemon=True).start()
 
-    print("Telegram bot running...")
+    print("🤖 Telegram bot running...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()

@@ -62,8 +62,14 @@ def get_token_price():
             "slippageBps": 1000
         }
 
-        res = requests.get(url, params=params)
-        data = res.json()
+       res = requests.get(
+    url,
+    params=params,
+    headers={"accept": "application/json"},
+    timeout=10
+)
+data = res.json()
+print("JUP RESPONSE:", data)
 
         if "data" not in data or len(data["data"]) == 0:
             print("No route found")

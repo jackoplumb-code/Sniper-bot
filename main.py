@@ -267,9 +267,14 @@ def manage_positions():
 def trading_loop():
     global BOT_RUNNING
 
+    print("🚀 Trading loop STARTED")  # <-- ADD THIS
+
     while True:
         try:
+            print("🔁 Loop tick")  # <-- ADD THIS
+
             if not BOT_RUNNING:
+                print("⏸ Bot paused")
                 time.sleep(2)
                 continue
 
@@ -304,7 +309,7 @@ def trading_loop():
             time.sleep(5)
 
         except Exception as e:
-            print("MAIN LOOP ERROR:", e)
+            print("💥 CRASH IN LOOP:", e)
             time.sleep(5)
 
 # ===== TELEGRAM =====
@@ -358,7 +363,7 @@ def main():
     app.add_handler(CommandHandler("status", status))
 
     # 🚨 THIS LINE IS THE ENGINE
-    threading.Thread(target=trading_loop).start()
+    threading.Thread(target=trading_loop, daemon=True).start()
 
     print("🤖 Bot running...")
     app.run_polling()

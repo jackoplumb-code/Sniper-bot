@@ -51,36 +51,35 @@ def calculate_buy_amount():
     return balance * BUY_PERCENT
 
 # ===== GET TOKEN PRICE (JUPITER FIXED) =====
-def get_token_price():
-    try:
-        url = "https://api.jup.ag/v6/quote"
+try:
+    url = "https://api.jup.ag/v6/quote"
 
-        params = {
-            "inputMint": "So11111111111111111111111111111111111111112",  # SOL
-            "outputMint": TOKEN_ADDRESS,
-            "amount": 100000000,   # 0.1 SOL
-            "slippageBps": 1000
-        }
+    params = {
+        "inputMint": "So11111111111111111111111111111111111111112",
+        "outputMint": TOKEN_ADDRESS,
+        "amount": 100000000,
+        "slippageBps": 1000
+    }
 
-       res = requests.get(
-    url,
-    params=params,
-    headers={"accept": "application/json"},
-    timeout=10
-)
-data = res.json()
-print("JUP RESPONSE:", data)
+    res = requests.get(
+        url,
+        params=params,
+        headers={"accept": "application/json"},
+        timeout=10
+    )
 
-        if "data" not in data or len(data["data"]) == 0:
-            print("No route found")
-            return None
+    data = res.json()
+    print("JUP RESPONSE:", data)
 
-        return float(data["data"][0]["outAmount"]) / 1e9
-
-    except Exception as e:
-        print("PRICE ERROR:", e)
+    if "data" not in data or len(data["data"]) == 0:
+        print("No route found")
         return None
 
+    return float(data["data"][0]["outAmount"]) / 1e9
+
+except Exception as e:
+    print("PRICE ERROR:", e)
+    return None
 # ===== EXECUTE BUY (TEMP DISABLED SWAP) =====
 def execute_buy():
     amount = calculate_buy_amount()

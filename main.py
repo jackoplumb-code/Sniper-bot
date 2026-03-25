@@ -1,3 +1,4 @@
+print("🚀 FILE STARTED")
 import time
 import requests
 import threading

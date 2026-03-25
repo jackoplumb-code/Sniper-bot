@@ -98,12 +98,7 @@ while True:
         price = get_token_price()
 
         if price is None:
-            print("⚠️ Price is None, forcing test buy...")
-            success = execute_buy()
-
-            if success:
-                STATE["last_trade_time"] = time.time()
-
+            print("⚠️ Price unavailable, skipping...")
             time.sleep(5)
             continue
 

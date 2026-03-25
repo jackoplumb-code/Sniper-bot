@@ -62,7 +62,7 @@ def get_token_price():
         res = requests.get(url, params=params)
         data = res.json()
 
-        return float(data["outAmount"]) / 1e9
+        return float(data["data"][0]["outAmount"]) / 1e9
 
     except Exception as e:
         print("PRICE ERROR:", e)

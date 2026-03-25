@@ -50,6 +50,34 @@ def get_sol_balance():
     except:
         return 0
 
+# ========================
+
+def send_transaction(tx_base64):
+    try:
+        import base64
+
+        tx_bytes = base64.b64decode(tx_base64)
+
+        res = requests.post(
+            "https://api.mainnet-beta.solana.com",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "sendTransaction",
+                "params": [
+                    tx_base64,
+                    {"encoding": "base64"}
+                ]
+            }
+        ).json()
+
+        print("TX SENT:", res)
+        return res
+
+    except Exception as e:
+        print("TX ERROR:", e)
+        return None
+        
 # ===== PRICE =====
 def get_token_price(token):
     try:
@@ -99,45 +127,118 @@ def is_token_safe(token):
 
 # ===== BUY =====
 def execute_buy(token):
-    balance = get_sol_balance()
-    amount = balance * BUY_PERCENT
+    try:
+        print(f"🚀 Attempting REAL BUY: {token}")
 
-    price = get_token_price(token)
-    if price is None:
-        return
+        balance = get_sol_balance()
+        amount_sol = balance * BUY_PERCENT
+        lamports = int(amount_sol * 1e9)
 
-    POSITIONS[token] = {
-        "entry": price,
-        "highest": price,
-        "amount": amount
-    }
+        quote = requests.get(
+            "https://quote-api.jup.ag/v6/quote",
+            params={
+                "inputMint": "So11111111111111111111111111111111111111112",
+                "outputMint": token,
+                "amount": lamports,
+                "slippageBps": 1000
+            }
+        ).json()
 
-    print(f"🚀 BUY {token} at {price}")
+        if "data" not in quote or len(quote["data"]) == 0:
+            print("❌ No route found")
+            return
+
+        swap = requests.post(
+            "https://quote-api.jup.ag/v6/swap",
+            json={
+                "quoteResponse": quote["data"][0],
+                "userPublicKey": WALLET_PUBLIC_KEY
+            }
+        ).json()
+
+        print("JUP SWAP RESPONSE:", swap)
+
+        if "swapTransaction" not in swap:
+            print("❌ No transaction returned")
+            return
+
+        tx = swap["swapTransaction"]
+
+        send_transaction(tx)
+
+        price = get_token_price(token)
+
+        POSITIONS[token] = {
+            "entry": price,
+            "highest": price,
+            "amount": amount_sol
+        }
+
+        print("✅ BUY SUCCESS")
+
+    except Exception as e:
+        print("BUY ERROR:", e)
 
 # ===== SELL =====
 def execute_sell(token, reason):
-    if token not in POSITIONS:
-        return
+    try:
+        print(f"💰 Selling {token} | {reason}")
 
-    entry = POSITIONS[token]["entry"]
-    price = get_token_price(token)
+        if token not in POSITIONS:
+            return
 
-    if price is None:
-        return
+        amount_sol = POSITIONS[token]["amount"]
+        lamports = int(amount_sol * 1e9)
 
-    pnl = (price - entry) / entry * 100
+        quote = requests.get(
+            "https://quote-api.jup.ag/v6/quote",
+            params={
+                "inputMint": token,
+                "outputMint": "So11111111111111111111111111111111111111112",
+                "amount": lamports,
+                "slippageBps": 1000
+            }
+        ).json()
 
-    STATS["total_trades"] += 1
-    STATS["total_pnl_percent"] += pnl
+        if "data" not in quote or len(quote["data"]) == 0:
+            print("❌ No sell route")
+            return
 
-    if pnl > 0:
-        STATS["wins"] += 1
-    else:
-        STATS["losses"] += 1
+        swap = requests.post(
+            "https://quote-api.jup.ag/v6/swap",
+            json={
+                "quoteResponse": quote["data"][0],
+                "userPublicKey": WALLET_PUBLIC_KEY
+            }
+        ).json()
 
-    print(f"💰 SELL {token} | {reason} | {round(pnl,2)}%")
+        if "swapTransaction" not in swap:
+            print("❌ No sell transaction")
+            return
 
-    del POSITIONS[token]
+        tx = swap["swapTransaction"]
+
+        send_transaction(tx)
+
+        price = get_token_price(token)
+        entry = POSITIONS[token]["entry"]
+
+        pnl = (price - entry) / entry * 100
+
+        STATS["total_trades"] += 1
+        STATS["total_pnl_percent"] += pnl
+
+        if pnl > 0:
+            STATS["wins"] += 1
+        else:
+            STATS["losses"] += 1
+
+        del POSITIONS[token]
+
+        print(f"✅ SOLD | PnL: {pnl:.2f}%")
+
+    except Exception as e:
+        print("SELL ERROR:", e)
 
 # ===== MANAGE POSITIONS =====
 def manage_positions():

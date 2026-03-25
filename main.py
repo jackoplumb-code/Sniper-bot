@@ -61,7 +61,7 @@ def get_token_price():
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",
             "outputMint": TOKEN_ADDRESS,
-            "amount": 10000000,
+            "amount": 100000000,
             "slippageBps": 1000
         }
 

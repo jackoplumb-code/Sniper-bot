@@ -357,10 +357,8 @@ def main():
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("status", status))
 
-    threading.Thread(target=trading_loop, daemon=True).start()
+    # 🚨 THIS LINE IS THE ENGINE
+    threading.Thread(target=trading_loop).start()
 
     print("🤖 Bot running...")
     app.run_polling()
-
-if __name__ == "__main__":
-    main()

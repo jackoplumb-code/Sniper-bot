@@ -1,4 +1,4 @@
-print("🚀 FILE LOADED")
+print("📁 FILE LOADED")
 import time
 import requests
 import threading

@@ -2,20 +2,20 @@ import time
 import requests
 import os
 
-# ====== USER CONFIG ======
-WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
+# ===== CONFIG =====
 TOKEN_ADDRESS = os.getenv("TOKEN_ADDRESS")  # set in Railway
+WALLET_PUBLIC_KEY = os.getenv("WALLET_PUBLIC_KEY")  # set in Railway
 
-BUY_PERCENT = 0.05  # 5% per trade (safe start)
-COOLDOWN_SECONDS = 60
+BUY_PERCENT = 0.1  # 10%
+COOLDOWN = 60
 
-# ====== STATE ======
+# ===== STATE =====
 STATE = {
-    "in_position": False,
-    "last_trade_time": 0
+    "last_trade_time": 0,
+    "in_position": False
 }
 
-# ====== GET SOL BALANCE ======
+# ===== GET SOL BALANCE =====
 def get_sol_balance():
     try:
         url = "https://api.mainnet-beta.solana.com"
@@ -27,17 +27,18 @@ def get_sol_balance():
             "params": [WALLET_PUBLIC_KEY]
         }
 
-        response = requests.post(url, json=payload)
-        data = response.json()
+        res = requests.post(url, json=payload)
+        data = res.json()
 
         lamports = data["result"]["value"]
         return lamports / 1e9
 
     except Exception as e:
         print("BALANCE ERROR:", e)
-        return None
+        return 0
 
-# ====== CALCULATE BUY ======
+
+# ===== CALCULATE BUY =====
 def calculate_buy_amount():
     balance = get_sol_balance()
 
@@ -47,7 +48,8 @@ def calculate_buy_amount():
 
     return balance * BUY_PERCENT
 
-# ====== GET TOKEN PRICE ======
+
+# ===== GET TOKEN PRICE =====
 def get_token_price():
     try:
         url = "https://api.jup.ag/v6/quote"
@@ -72,40 +74,66 @@ def get_token_price():
         print("PRICE ERROR:", e)
         return None
 
-# ====== EXECUTE BUY (SIMULATED STILL) ======
+
+# ===== JUPITER SWAP (SAFE MODE) =====
+def execute_jupiter_swap(amount_sol):
+    try:
+        url = "https://quote-api.jup.ag/v6/swap"
+
+        payload = {
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": TOKEN_ADDRESS,
+            "amount": int(amount_sol * 1e9),
+            "slippageBps": 1000,
+            "userPublicKey": WALLET_PUBLIC_KEY,
+            "wrapAndUnwrapSol": True
+        }
+
+        res = requests.post(url, json=payload)
+        data = res.json()
+
+        if "swapTransaction" not in data:
+            print("Swap failed:", data)
+            return False
+
+        print("✅ Swap transaction created (NOT SENT YET)")
+        return True
+
+    except Exception as e:
+        print("SWAP ERROR:", e)
+        return False
+
+
+# ===== EXECUTE BUY =====
 def execute_buy():
     amount = calculate_buy_amount()
-    print(f"REAL BUY: {amount} SOL")
 
-    # ⚠️ STILL SIMULATED (no real tx yet)
-    return True
+    print(f"🚀 REAL BUY ATTEMPT: {amount} SOL")
 
-# ====== EXECUTE SELL (SIMULATED) ======
-def execute_sell():
-    print("SELL (simulated)")
-    return True
+    success = execute_jupiter_swap(amount)
 
-# ====== MAIN LOOP ======
+    return success
+
+
+# ===== MAIN LOOP =====
 while True:
     try:
         print("Bot running...")
 
         # cooldown
-        if time.time() - STATE["last_trade_time"] < 60:
+        if time.time() - STATE["last_trade_time"] < COOLDOWN:
             time.sleep(5)
             continue
 
         # get price
         price = get_token_price()
 
-        # force test buy if price fails
         if price is None:
             print("⚠️ Price is None, forcing test buy...")
             success = execute_buy()
         else:
             success = execute_buy()
 
-        # update state
         if success:
             STATE["in_position"] = True
             STATE["last_trade_time"] = time.time()

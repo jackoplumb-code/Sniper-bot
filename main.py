@@ -7,6 +7,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
 import base58
 
+BOT_RUNNING = {"value": False}
+
 # wallet setup 
 
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
@@ -279,7 +281,8 @@ def trading_loop():
                 time.sleep(2)
                 continue
 
-            print("🔍 Scanning tokens...")
+        print("🔥 BOT RUNNING:", BOT_RUNNING["value"])
+        print("🔍 Scanning tokens...")
 
             manage_positions()
 
@@ -314,13 +317,11 @@ def trading_loop():
             time.sleep(5)
 
 # ===== TELEGRAM =====
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global BOT_RUNNING
+async def start(update, context):
     BOT_RUNNING["value"] = True
     await update.message.reply_text("🚀 Bot started")
 
-async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global BOT_RUNNING
+async def stop(update, context):
     BOT_RUNNING["value"] = False
     await update.message.reply_text("🛑 Bot stopped")
 

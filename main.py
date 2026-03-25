@@ -23,7 +23,7 @@ BUY_PERCENT = 0.1
 STOP_LOSS = 0.2
 TRAILING_STOP = 0.2
 
-BOT_RUNNING = False
+BOT_RUNNING = {"value": False}
 
 # ===== STATE =====
 POSITIONS = {}
@@ -274,7 +274,7 @@ def trading_loop():
         try:
             print("🔁 Loop tick")  # <-- ADD THIS
 
-            if not BOT_RUNNING:
+            if not BOT_RUNNING["value"]:
                 print("⏸ Bot paused")
                 time.sleep(2)
                 continue
@@ -316,12 +316,12 @@ def trading_loop():
 # ===== TELEGRAM =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global BOT_RUNNING
-    BOT_RUNNING = True
+    BOT_RUNNING["value"] = True
     await update.message.reply_text("🚀 Bot started")
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global BOT_RUNNING
-    BOT_RUNNING = False
+    BOT_RUNNING["value"] = False
     await update.message.reply_text("🛑 Bot stopped")
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):

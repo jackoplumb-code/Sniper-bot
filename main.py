@@ -1,12 +1,24 @@
 import time
 import requests
+import os
+import threading
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # ===== CONFIG =====
-TOKEN_ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6nBzT5d3KkJpump"  # BONK
-WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
+TOKENS = [
+    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6s7YaB1pPB263",  # BONK
+]
 
-BUY_PERCENT = 0.1   # 10%
+WALLET_PUBLIC_KEY = os.getenv("WALLET_PUBLIC_KEY")
+
+BUY_PERCENT = 0.1
 COOLDOWN = 60
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = int(os.getenv("CHAT_ID"))
+
+BOT_RUNNING = False
 
 # ===== STATE =====
 STATE = {
@@ -15,21 +27,24 @@ STATE = {
 }
 
 # ===== GET TOKEN PRICE =====
-def get_token_price():
+def get_token_price(token_address):
     try:
         url = "https://api.jup.ag/v6/quote"
 
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",
-            "outputMint": TOKEN_ADDRESS,
-            "amount": 100000000,  # 0.1 SOL
+            "outputMint": token_address,
+            "amount": 100000000,
             "slippageBps": 1000
         }
 
         res = requests.get(
             url,
             params=params,
-            headers={"accept": "application/json"},
+            headers={
+                "accept": "application/json",
+                "User-Agent": "Mozilla/5.0"
+            },
             timeout=10
         )
 
@@ -37,7 +52,7 @@ def get_token_price():
         print("JUP RESPONSE:", data)
 
         if "data" not in data or len(data["data"]) == 0:
-            print("No route found")
+            print(f"No route for {token_address}")
             return None
 
         return float(data["data"][0]["outAmount"]) / 1e9
@@ -46,8 +61,7 @@ def get_token_price():
         print("PRICE ERROR:", e)
         return None
 
-
-# ===== GET SOL BALANCE =====
+# ===== GET BALANCE =====
 def get_sol_balance():
     try:
         url = "https://api.mainnet-beta.solana.com"
@@ -66,61 +80,95 @@ def get_sol_balance():
             print("BALANCE ERROR:", data)
             return None
 
-        lamports = data["result"]["value"]
-        return lamports / 1e9
+        return data["result"]["value"] / 1e9
 
     except Exception as e:
         print("BALANCE ERROR:", e)
         return None
-
 
 # ===== CALCULATE BUY =====
 def calculate_buy_amount():
     balance = get_sol_balance()
 
     if not balance:
-        print("Using fallback buy")
         return 0.01
 
     return balance * BUY_PERCENT
 
-
 # ===== EXECUTE BUY (SAFE MODE) =====
-def execute_buy():
+def execute_buy(token):
     amount = calculate_buy_amount()
-    print(f"🚀 REAL BUY ATTEMPT: {amount} SOL")
+    print(f"🚀 BUY SIGNAL: {token} | {amount} SOL")
 
-    # SAFE MODE (no real trades yet)
-    print("⚠️ Swap disabled (testing mode)")
+    # SAFE MODE
+    print("⚠️ Trade not executed (testing mode)")
+
     return True
 
+# ===== TELEGRAM COMMANDS =====
+async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global BOT_RUNNING
+    BOT_RUNNING = True
+    await update.message.reply_text("🚀 Bot started")
 
-# ===== MAIN LOOP =====
-while True:
-    try:
-        print("Bot running...")
 
-        # cooldown
-        if time.time() - STATE["last_trade_time"] < COOLDOWN:
+async def stop_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global BOT_RUNNING
+    BOT_RUNNING = False
+    await update.message.reply_text("🛑 Bot stopped")
+
+
+async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    status = "RUNNING" if BOT_RUNNING else "STOPPED"
+    await update.message.reply_text(f"📊 Status: {status}")
+
+# ===== MAIN TRADING LOOP =====
+def trading_loop():
+    global BOT_RUNNING
+
+    while True:
+        try:
+            if not BOT_RUNNING:
+                time.sleep(2)
+                continue
+
+            print("Scanning tokens...")
+
+            for token in TOKENS:
+                print(f"Checking: {token}")
+
+                price = get_token_price(token)
+
+                if price is None:
+                    continue
+
+                print(f"VALID TOKEN → {token}")
+
+                success = execute_buy(token)
+
+                if success:
+                    STATE["last_trade_time"] = time.time()
+                    time.sleep(10)
+
             time.sleep(5)
-            continue
 
-        price = get_token_price()
-
-        if price is None:
-            print("⚠️ Price unavailable, skipping...")
+        except Exception as e:
+            print("MAIN LOOP ERROR:", e)
             time.sleep(5)
-            continue
 
-        # BUY LOGIC (test mode always true)
-        success = execute_buy()
+# ===== MAIN =====
+def main():
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-        if success:
-            STATE["in_position"] = True
-            STATE["last_trade_time"] = time.time()
+    app.add_handler(CommandHandler("start", start_cmd))
+    app.add_handler(CommandHandler("stop", stop_cmd))
+    app.add_handler(CommandHandler("status", status_cmd))
 
-        time.sleep(5)
+    threading.Thread(target=trading_loop).start()
 
-    except Exception as e:
-        print("MAIN LOOP ERROR:", e)
-        time.sleep(5)
+    print("Telegram bot running...")
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()

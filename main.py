@@ -1,4 +1,4 @@
-print("🚀 FILE STARTED")
+print("🚀 FILE LOADED")
 import time
 import requests
 import threading
@@ -368,3 +368,7 @@ def main():
 
     print("🤖 Bot running...")
     app.run_polling()
+    
+    if __name__ == "__main__":
+    print("🚀 Launching bot...")
+    main()

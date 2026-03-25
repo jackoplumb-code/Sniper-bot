@@ -3,8 +3,8 @@ import requests
 import os
 
 # ===== CONFIG =====
-TOKEN_ADDRESS = os.getenv("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263")
-WALLET_PUBLIC_KEY = os.getenv("HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44")
+TOKEN_ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
+WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
 
 BUY_PERCENT = 0.1  # 10%
 COOLDOWN = 60

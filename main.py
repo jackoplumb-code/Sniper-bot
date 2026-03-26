@@ -85,13 +85,15 @@ def send_transaction(tx_base64):
 def get_token_price(token):
     try:
         import requests
-        url = f"https://price.jup.ag/v4/price?ids={token}"
-        res = requests.get(url).json()
+        url = f"https://api.dexscreener.com/latest/dex/tokens/{token}"
+        res = requests.get(url, timeout=5).json()
 
-        if "data" in res and token in res["data"]:
-            return res["data"][token]["price"]
+        pairs = res.get("pairs", [])
+        if not pairs:
+            return None
 
-        return None
+        return float(pairs[0]["priceUsd"])
+
     except Exception as e:
         print("Price error:", e)
         return None

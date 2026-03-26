@@ -84,22 +84,16 @@ def send_transaction(tx_base64):
 # ===== PRICE =====
 def get_token_price(token):
     try:
-        url = "https://quote-api.jup.ag/v6/quote"
+        import requests
+        url = f"https://price.jup.ag/v4/price?ids={token}"
+        res = requests.get(url).json()
 
-        params = {
-            "inputMint": "So11111111111111111111111111111111111111112",
-            "outputMint": token,
-            "amount": 100000000
-        }
+        if "data" in res and token in res["data"]:
+            return res["data"][token]["price"]
 
-        res = requests.get(url, params=params)
-        data = res.json()
-
-        if "data" not in data or len(data["data"]) == 0:
-            return None
-
-        return float(data["data"][0]["outAmount"]) / 1e9
-    except:
+        return None
+    except Exception as e:
+        print("Price error:", e)
         return None
 
 # ===== RUG CHECK =====

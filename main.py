@@ -131,7 +131,7 @@ def execute_buy(token):
 
         print(f"🚀 Attempting REAL BUY: {token}")
 
-        url = "https://api.jup.ag/swap/v1/quote"
+        url = "https://quote-api.jup.ag/v6/quote"
 
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",
@@ -180,7 +180,7 @@ def execute_sell(token, reason):
         lamports = int(amount_sol * 1e9)
 
         quote = requests.get(
-            "https://api.jup.ag/swap/v1/quote",
+            "https://quote-api.jup.ag/v6/quote",
             params={
                 "inputMint": token,
                 "outputMint": "So11111111111111111111111111111111111111112",

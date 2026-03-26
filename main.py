@@ -134,7 +134,7 @@ def execute_buy(token):
         lamports = int(amount_sol * 1e9)
 
         quote = requests.get(
-            "https://quote-api.jup.ag/v6/quote",
+            "https://api.jup.ag/swap/v1/quote",
             params={
                 "inputMint": "So11111111111111111111111111111111111111112",
                 "outputMint": token,
@@ -190,7 +190,7 @@ def execute_sell(token, reason):
         lamports = int(amount_sol * 1e9)
 
         quote = requests.get(
-            "https://quote-api.jup.ag/v6/quote",
+            "https://api.jup.ag/swap/v1/quote",
             params={
                 "inputMint": token,
                 "outputMint": "So11111111111111111111111111111111111111112",

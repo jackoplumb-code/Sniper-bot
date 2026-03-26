@@ -347,18 +347,20 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== MAIN =====
 def main():
+    print("🚀 Starting bot setup...")
+
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("status", status))
 
-    # 🚨 THIS LINE IS THE ENGINE
-    threading.Thread(target=trading_loop, daemon=True).start()
+    # start trading loop in background
+    threading.Thread(target=trading_loop).start()
 
     print("🤖 Bot running...")
-    app.run_polling(drop_pending_updates=True, close_loop=False)
-
-if __name__ == "__main__":
-    print("🚀 Launching bot...")
-    main()
+    app.run_polling(drop_pending_updates=True)
+    
+    if __name__ == "__main__":
+        print("🚀 Launching bot clean...")
+        main()

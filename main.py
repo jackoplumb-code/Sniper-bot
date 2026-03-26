@@ -352,12 +352,11 @@ def main():
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("status", status))
 
-    # start trading loop in background
     threading.Thread(target=trading_loop).start()
 
     print("🤖 Bot running...")
     app.run_polling(drop_pending_updates=True)
-    
-    if __name__ == "__main__":
-        print("🚀 Launching bot clean...")
-        main()
+
+
+print("🚀 FORCE STARTING BOT...")
+main()

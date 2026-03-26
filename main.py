@@ -1,6 +1,3 @@
-if __name__ == "__main__":
-    print("🚀 Launching bot clean...")
-    main()
 print("📁 FILE LOADED")
 import time
 import requests

@@ -1,3 +1,6 @@
+if __name__ == "__main__":
+    print("🚀 Launching bot clean...")
+    main()
 print("📁 FILE LOADED")
 import time
 import requests
@@ -354,7 +357,7 @@ def main():
     threading.Thread(target=trading_loop, daemon=True).start()
 
     print("🤖 Bot running...")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True, close_loop=False)
 
 if __name__ == "__main__":
     print("🚀 Launching bot...")

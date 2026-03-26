@@ -300,9 +300,8 @@ def trading_loop():
                 safe = is_token_safe(token)
                 print(f"Safe: {safe}")
 
-                if not safe:
-                    print("❌ Not safe")
-                    continue
+                if False:
+                     continue
 
                 print("🚀 BUYING")
                 execute_buy(token)

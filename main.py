@@ -344,6 +344,8 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== MAIN =====
 def main():
+    import time
+
     print("🚀 Starting bot setup...")
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
@@ -352,22 +354,22 @@ def main():
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("status", status))
 
+    # start trading loop in background
     threading.Thread(target=trading_loop).start()
 
-    import time  # make sure this is at top of file
+    print("🤖 Bot running...")
 
-print("🤖 Bot running...")
-
-while True:
-    try:
-        print("🔄 Starting Telegram polling...")
-        app.run_polling(
-            drop_pending_updates=True,
-            close_loop=False
-        )
-    except Exception as e:
-        print("❌ Polling crashed:", e)
-        time.sleep(5)
+    # ✅ polling loop (fixed)
+    while True:
+        try:
+            print("🔄 Starting Telegram polling...")
+            app.run_polling(
+                drop_pending_updates=True,
+                close_loop=False
+            )
+        except Exception as e:
+            print("❌ Polling crashed:", e)
+            time.sleep(5)
 
 
 print("🚀 FORCE STARTING BOT...")

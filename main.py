@@ -8,7 +8,6 @@ import base58
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-from solders.keypair import Keypair
 from solders.transaction import VersionedTransaction
 
 # ================= CONFIG =================
@@ -16,7 +15,6 @@ TELEGRAM_TOKEN = os.getenv("8394510966:AAGbpFgVYnbd8UlkN2u_BOvA-SI1QFk1xtA")
 PRIVATE_KEY = os.getenv("5MVs88jnFpbJHce29pfm1jLo8GekjWg7JVsfrkuuiNoFQvP3bsMf4jgWNT3oekrKJ4i9P1eZpWVwQkfDQBjW8b8C")
 RPC_URL = "https://api.mainnet-beta.solana.com"
 
-wallet = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
 
 TOKENS = [
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"

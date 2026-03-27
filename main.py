@@ -131,7 +131,7 @@ def execute_buy(token):
 
         print(f"🚀 Attempting REAL BUY: {token}")
 
-        url = "https://api.jup.ag/v6/quote"
+        url = "https://quote-api.jup.ag/v6/quote"
 
         params = {
             "inputMint": "So11111111111111111111111111111111111111112",

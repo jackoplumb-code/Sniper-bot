@@ -350,7 +350,10 @@ def main():
     threading.Thread(target=trading_loop).start()
 
     print("🤖 Bot running...")
-    app.run_polling(drop_pending_updates=True)
+    app.run_polling(
+    drop_pending_updates=True,
+    close_loop=False
+)
 
 
 print("🚀 FORCE STARTING BOT...")

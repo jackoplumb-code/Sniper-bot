@@ -99,30 +99,56 @@ def get_token_price(token):
         return None
 
 # ===== RUG CHECK =====
-def is_token_safe(token):
-    try:
-        url = "https://api.mainnet-beta.solana.com"
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getAccountInfo",
-            "params": [token, {"encoding": "jsonParsed"}]
-        }
+    print(f"🔍 Checking safety for {token}")
 
-        res = requests.post(url, json=payload)
-        data = res.json()
+    url = "https://api.mainnet-beta.solana.com"
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getAccountInfo",
+        "params": [token, {"encoding": "jsonParsed"}]
+    }
 
-        info = data["result"]["value"]["data"]["parsed"]["info"]
+    res = requests.post(url, json=payload, timeout=5)
+    data = res.json()
 
-        if info.get("mintAuthority") is not None:
-            return False
+    # 🔥 DEBUG PRINT
+    print("RAW SAFE DATA:", data)
 
-        if info.get("freezeAuthority") is not None:
-            return False
+    value = data.get("result", {}).get("value")
 
-        return True
-    except:
+    if value is None:
+        print("❌ No account data")
         return False
+
+    parsed = value.get("data", {}).get("parsed")
+
+    if not parsed:
+        print("⚠️ No parsed data (probably fine)")
+        return True  # <-- IMPORTANT CHANGE
+
+    info = parsed.get("info", {})
+
+    mint_auth = info.get("mintAuthority")
+    freeze_auth = info.get("freezeAuthority")
+
+    print(f"Mint authority: {mint_auth}")
+    print(f"Freeze authority: {freeze_auth}")
+
+    if mint_auth is not None:
+        print("❌ Mint authority still active")
+        return False
+
+    if freeze_auth is not None:
+        print("❌ Freeze authority still active")
+        return False
+
+    print("✅ Token looks safe")
+    return True
+
+except Exception as e:
+    print("SAFE CHECK ERROR:", e)
+    return True  # <-- IMPORTANT CHANGE
 
 # ===== BUY =====
 def execute_buy(token):

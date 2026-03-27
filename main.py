@@ -354,11 +354,20 @@ def main():
 
     threading.Thread(target=trading_loop).start()
 
-    print("🤖 Bot running...")
-    app.run_polling(
-    drop_pending_updates=True,
-    close_loop=False
-)
+    import time  # make sure this is at top of file
+
+print("🤖 Bot running...")
+
+while True:
+    try:
+        print("🔄 Starting Telegram polling...")
+        app.run_polling(
+            drop_pending_updates=True,
+            close_loop=False
+        )
+    except Exception as e:
+        print("❌ Polling crashed:", e)
+        time.sleep(5)
 
 
 print("🚀 FORCE STARTING BOT...")

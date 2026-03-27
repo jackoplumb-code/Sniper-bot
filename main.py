@@ -1,370 +1,231 @@
-print("📁 FILE LOADED")
-import time
-import requests
-import threading
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import os
+import time
+import base64
+import threading
+import requests
 import base58
 
-BOT_RUNNING = {"value": False}
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# wallet setup 
+from solana.rpc.api import Client
+from solders.keypair import Keypair
+from solders.transaction import VersionedTransaction
 
+# ================= CONFIG =================
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 PRIVATE_KEY = os.getenv("PRIVATE_KEY")
+RPC_URL = "https://api.mainnet-beta.solana.com"
 
-# ===== CONFIG =====
-TELEGRAM_TOKEN = "8394510966:AAGbpFgVYnbd8UlkN2u_BOvA-SI1QFk1xtA"
-WALLET_PUBLIC_KEY = "HYpGuL2ohivog1mtaa4hgHLGHnH186AKqdUBzg4mTV44"
+client = Client(RPC_URL)
+wallet = Keypair.from_bytes(base58.b58decode(PRIVATE_KEY))
 
 TOKENS = [
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"  # USDC
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 ]
 
-BUY_PERCENT = 0.1
-STOP_LOSS = 0.2
-TRAILING_STOP = 0.2
+BOT_RUNNING = {"value": True}
 
-BOT_RUNNING = {"value": False}
+POSITIONS = {}  # token -> {buy_price, amount}
+STATS = {"trades": 0, "wins": 0, "losses": 0, "pnl": 0}
 
-# ===== STATE =====
-POSITIONS = {}
+TP_PERCENT = 20   # take profit %
+SL_PERCENT = -10  # stop loss %
 
-STATS = {
-    "total_trades": 0,
-    "wins": 0,
-    "losses": 0,
-    "total_pnl_percent": 0
-}
+JUP_QUOTE = "https://quote-api.jup.ag/v6/quote"
+JUP_SWAP = "https://quote-api.jup.ag/v6/swap"
 
-# ===== BALANCE =====
-def get_sol_balance():
-    try:
-        url = "https://api.mainnet-beta.solana.com"
-        payload = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "getBalance",
-            "params": [WALLET_PUBLIC_KEY]
-        }
-        res = requests.post(url, json=payload)
-        data = res.json()
-        return data["result"]["value"] / 1e9
-    except:
-        return 0
-
-# ========================
-
-def send_transaction(tx_base64):
-    try:
-        import base64
-
-        tx_bytes = base64.b64decode(tx_base64)
-
-        res = requests.post(
-            "https://api.mainnet-beta.solana.com",
-            json={
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "sendTransaction",
-                "params": [
-                    tx_base64,
-                    {"encoding": "base64"}
-                ]
-            }
-        ).json()
-
-        print("TX SENT:", res)
-        return res
-
-    except Exception as e:
-        print("TX ERROR:", e)
-        return None
-        
-# ===== PRICE =====
+# ================= PRICE =================
 def get_token_price(token):
     try:
-        import requests
-        url = f"https://api.dexscreener.com/latest/dex/tokens/{token}"
-        res = requests.get(url, timeout=5).json()
-
-        pairs = res.get("pairs", [])
-        if not pairs:
-            return None
-
-        return float(pairs[0]["priceUsd"])
-
-    except Exception as e:
-        print("Price error:", e)
+        params = {
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": token,
+            "amount": 10000000,
+        }
+        res = requests.get(JUP_QUOTE, params=params, timeout=10).json()
+        out = res["data"][0]["outAmount"]
+        return float(out) / 1e6
+    except:
         return None
 
-# ===== RUG CHECK =====
-    print(f"🔍 Checking safety for {token}")
-
-    url = "https://api.mainnet-beta.solana.com"
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "getAccountInfo",
-        "params": [token, {"encoding": "jsonParsed"}]
-    }
-
-    res = requests.post(url, json=payload, timeout=5)
-    data = res.json()
-
-    # 🔥 DEBUG PRINT
-    print("RAW SAFE DATA:", data)
-
-    value = data.get("result", {}).get("value")
-
-    if value is None:
-        print("❌ No account data")
-        return False
-
-    parsed = value.get("data", {}).get("parsed")
-
-    if not parsed:
-        print("⚠️ No parsed data (probably fine)")
-        return True  # <-- IMPORTANT CHANGE
-
-    info = parsed.get("info", {})
-
-    mint_auth = info.get("mintAuthority")
-    freeze_auth = info.get("freezeAuthority")
-
-    print(f"Mint authority: {mint_auth}")
-    print(f"Freeze authority: {freeze_auth}")
-
-    if mint_auth is not None:
-        print("❌ Mint authority still active")
-        return False
-
-    if freeze_auth is not None:
-        print("❌ Freeze authority still active")
-        return False
-
-    print("✅ Token looks safe")
-    return True
-
-except Exception as e:
-    print("SAFE CHECK ERROR:", e)
-    return True  # <-- IMPORTANT CHANGE
-
-# ===== BUY =====
-def execute_buy(token):
+# ================= SAFETY =================
+def is_token_safe(token):
     try:
-        import requests
+        # basic: must have route (liquidity proxy)
+        params = {
+            "inputMint": "So11111111111111111111111111111111111111112",
+            "outputMint": token,
+            "amount": 10000000,
+        }
+        res = requests.get(JUP_QUOTE, params=params, timeout=5).json()
 
-                print(f"🚀 Attempting REAL BUY: {token}")
+        if "data" not in res or not res["data"]:
+            print("❌ No liquidity route")
+            return False
 
-    url = "https://api.jup.ag/v6/quote"
+        return True
+    except:
+        return False
 
-    params = {
-        "inputMint": "So11111111111111111111111111111111111111112",
-        "outputMint": token,
-        "amount": 10000000,
-        "slippageBps": 500
-    }
+# ================= SWAP =================
+def jupiter_swap(input_mint, output_mint, amount):
+    try:
+        params = {
+            "inputMint": input_mint,
+            "outputMint": output_mint,
+            "amount": amount,
+            "slippageBps": 500
+        }
 
-    res = requests.get(url, params=params, timeout=10)
+        quote = requests.get(JUP_QUOTE, params=params, timeout=10).json()
+        if "data" not in quote or not quote["data"]:
+            return None
 
-    print("QUOTE RESPONSE:", res.text)
+        route = quote["data"][0]
 
-    data = res.json()
+        payload = {
+            "quoteResponse": route,
+            "userPublicKey": str(wallet.pubkey()),
+            "wrapAndUnwrapSol": True
+        }
 
-    if "data" not in data or not data["data"]:
-        print("❌ No route found")
+        swap = requests.post(JUP_SWAP, json=payload, timeout=10).json()
+        tx_b64 = swap.get("swapTransaction")
+
+        if not tx_b64:
+            return None
+
+        tx = VersionedTransaction.from_bytes(base64.b64decode(tx_b64))
+        tx.sign([wallet])
+
+        sig = client.send_raw_transaction(bytes(tx)).value
+        print(f"✅ TX: https://solscan.io/tx/{sig}")
+        return sig
+
+    except Exception as e:
+        print("SWAP ERROR:", e)
+        return None
+
+# ================= BUY =================
+def execute_buy(token):
+    print(f"🚀 BUYING {token}")
+
+    sig = jupiter_swap(
+        "So11111111111111111111111111111111111111112",
+        token,
+        10000000
+    )
+
+    if not sig:
         return
 
-    print("✅ Route found — ready to swap")
+    price = get_token_price(token)
 
-except Exception as e:
-    print("BUY ERROR:", e)
+    if price:
+        POSITIONS[token] = {
+            "buy_price": price,
+            "amount": 10000000
+        }
+        print(f"📈 Bought at {price}")
 
-# ===== SELL =====
-def execute_sell(token, reason):
-    try:
-        print(f"💰 Selling {token} | {reason}")
+# ================= SELL =================
+def execute_sell(token):
+    print(f"💰 SELLING {token}")
 
-        if token not in POSITIONS:
-            return
+    sig = jupiter_swap(
+        token,
+        "So11111111111111111111111111111111111111112",
+        POSITIONS[token]["amount"]
+    )
 
-        amount_sol = POSITIONS[token]["amount"]
-        lamports = int(amount_sol * 1e9)
+    if not sig:
+        return
 
-        quote = requests.get(
-            "https://quote-api.jup.ag/v6/quote",
-            params={
-                "inputMint": token,
-                "outputMint": "So11111111111111111111111111111111111111112",
-                "amount": lamports,
-                "slippageBps": 1000
-            }
-        ).json()
+    sell_price = get_token_price(token)
+    buy_price = POSITIONS[token]["buy_price"]
 
-        if "data" not in quote or len(quote["data"]) == 0:
-            print("❌ No sell route")
-            return
-
-        swap = requests.post(
-            "https://quote-api.jup.ag/v6/swap",
-            json={
-                "quoteResponse": quote["data"][0],
-                "userPublicKey": WALLET_PUBLIC_KEY
-            }
-        ).json()
-
-        if "swapTransaction" not in swap:
-            print("❌ No sell transaction")
-            return
-
-        tx = swap["swapTransaction"]
-
-        send_transaction(tx)
-
-        price = get_token_price(token)
-        entry = POSITIONS[token]["entry"]
-
-        pnl = (price - entry) / entry * 100
-
-        STATS["total_trades"] += 1
-        STATS["total_pnl_percent"] += pnl
+    if sell_price:
+        pnl = ((sell_price - buy_price) / buy_price) * 100
+        STATS["trades"] += 1
+        STATS["pnl"] += pnl
 
         if pnl > 0:
             STATS["wins"] += 1
         else:
             STATS["losses"] += 1
 
-        del POSITIONS[token]
+        print(f"📊 PnL: {round(pnl,2)}%")
 
-        print(f"✅ SOLD | PnL: {pnl:.2f}%")
+    del POSITIONS[token]
 
-    except Exception as e:
-        print("SELL ERROR:", e)
-
-# ===== MANAGE POSITIONS =====
+# ================= POSITION MGMT =================
 def manage_positions():
     for token in list(POSITIONS.keys()):
         price = get_token_price(token)
-        if price is None:
+        if not price:
             continue
 
-        entry = POSITIONS[token]["entry"]
-        highest = POSITIONS[token]["highest"]
+        buy_price = POSITIONS[token]["buy_price"]
+        change = ((price - buy_price) / buy_price) * 100
 
-        if price > highest:
-            POSITIONS[token]["highest"] = price
-            highest = price
+        print(f"📊 {token} change: {round(change,2)}%")
 
-        # STOP LOSS
-        if price <= entry * (1 - STOP_LOSS):
-            execute_sell(token, "STOP LOSS")
-            continue
+        if change >= TP_PERCENT:
+            print("🎯 TAKE PROFIT")
+            execute_sell(token)
 
-        # TRAILING STOP
-        if price <= highest * (1 - TRAILING_STOP):
-            execute_sell(token, "TRAILING STOP")
+        elif change <= SL_PERCENT:
+            print("🛑 STOP LOSS")
+            execute_sell(token)
 
-# ===== LOOP =====
+# ================= LOOP =================
 def trading_loop():
-
-    print("🚀 Trading loop STARTED")
-
     while True:
         try:
-            print("🔁 Loop tick")
-
             if not BOT_RUNNING["value"]:
-                print("⏸ Bot paused")
-                time.sleep(2)
+                time.sleep(5)
                 continue
-
-            # ✅ ADD THIS LINE RIGHT HERE
-            print("🔥 BOT RUNNING:", BOT_RUNNING["value"])
-
-            print("🔍 Scanning tokens...")
 
             manage_positions()
 
             for token in TOKENS:
-                print(f"Checking token: {token}")
-
                 if token in POSITIONS:
-                    print("Already in position")
+                    continue
+
+                print(f"Checking {token}")
+
+                if not is_token_safe(token):
                     continue
 
                 price = get_token_price(token)
-                print(f"Price: {price}")
-
-                if price is None:
-                    print("❌ No price")
+                if not price:
                     continue
 
-                safe = is_token_safe(token)
-
-                # 🔍 DEBUG LINE (ADD THIS)
-                print("DEBUG SAFE CHECK:", token, safe)
-
-                print(f"Safe: {safe}")
-
-                if not safe:
-                    print("❌ Not safe")
-                    continue
-
-                print("🚀 BUYING")
                 execute_buy(token)
 
-            time.sleep(5)
+            time.sleep(10)
 
         except Exception as e:
-            print("💥 CRASH IN LOOP:", e)
+            print("LOOP ERROR:", e)
             time.sleep(5)
 
-# ===== TELEGRAM =====
-async def start(update, context):
+# ================= TELEGRAM =================
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     BOT_RUNNING["value"] = True
-    await update.message.reply_text("🚀 Bot started")
+    await update.message.reply_text("✅ Bot started")
 
-async def stop(update, context):
+async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     BOT_RUNNING["value"] = False
-    await update.message.reply_text("🛑 Bot stopped")
+    await update.message.reply_text("⏸ Bot stopped")
 
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    balance = get_sol_balance()
-
-    msg = f"📊 BOT STATUS\n\n"
-    msg += f"💰 Wallet: {round(balance,4)} SOL\n\n"
-
-    # OPEN POSITIONS
-    if POSITIONS:
-        msg += "📂 OPEN POSITIONS:\n"
-        for token, data in POSITIONS.items():
-            price = get_token_price(token)
-            if price:
-                pnl = (price - data["entry"]) / data["entry"] * 100
-                msg += f"{token[:6]}... | {round(pnl,2)}%\n"
-    else:
-        msg += "📂 No open positions\n"
-
-    # STATS
-    msg += f"\n📈 PERFORMANCE\n"
-    msg += f"Trades: {STATS['total_trades']}\n"
-    msg += f"Wins: {STATS['wins']}\n"
-    msg += f"Losses: {STATS['losses']}\n"
-
-    if STATS["total_trades"] > 0:
-        winrate = (STATS["wins"] / STATS["total_trades"]) * 100
-        msg += f"Winrate: {round(winrate,2)}%\n"
-
-    msg += f"Total PnL: {round(STATS['total_pnl_percent'],2)}%\n"
-
+    msg = f"Running: {BOT_RUNNING['value']}\nTrades: {STATS['trades']}\nPnL: {round(STATS['pnl'],2)}%"
     await update.message.reply_text(msg)
 
-# ===== MAIN =====
+# ================= MAIN =================
 def main():
-    import time
-
-    print("🚀 Starting bot setup...")
+    print("🚀 Starting bot...")
 
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
@@ -372,23 +233,10 @@ def main():
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("status", status))
 
-    # start trading loop in background
-    threading.Thread(target=trading_loop).start()
+    threading.Thread(target=trading_loop, daemon=True).start()
 
     print("🤖 Bot running...")
+    app.run_polling(drop_pending_updates=True)
 
-    # ✅ polling loop (fixed)
-    while True:
-        try:
-            print("🔄 Starting Telegram polling...")
-            app.run_polling(
-                drop_pending_updates=True,
-                close_loop=False
-            )
-        except Exception as e:
-            print("❌ Polling crashed:", e)
-            time.sleep(5)
-
-
-print("🚀 FORCE STARTING BOT...")
-main()
+if name == "main":
+    main()

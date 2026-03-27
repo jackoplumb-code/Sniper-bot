@@ -155,7 +155,7 @@ def execute_buy(token):
     try:
         import requests
 
-            print(f"🚀 Attempting REAL BUY: {token}")
+                print(f"🚀 Attempting REAL BUY: {token}")
 
     url = "https://api.jup.ag/v6/quote"
 

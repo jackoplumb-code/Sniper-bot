@@ -155,39 +155,31 @@ def execute_buy(token):
     try:
         import requests
 
-        print(f"🚀 Attempting REAL BUY: {token}")
+            print(f"🚀 Attempting REAL BUY: {token}")
 
-        url = "https://quote-api.jup.ag/v6/quote"
+    url = "https://api.jup.ag/v6/quote"
 
-        params = {
-            "inputMint": "So11111111111111111111111111111111111111112",
-            "outputMint": token,
-            "amount": 10000000,
-            "slippageBps": 500
-        }
+    params = {
+        "inputMint": "So11111111111111111111111111111111111111112",
+        "outputMint": token,
+        "amount": 10000000,
+        "slippageBps": 500
+    }
 
-        res = requests.get(
-            url,
-            params=params,
-            timeout=10,
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
+    res = requests.get(url, params=params, timeout=10)
 
-        print("QUOTE RESPONSE:", res.text)
+    print("QUOTE RESPONSE:", res.text)
 
-        data = res.json()
+    data = res.json()
 
-        # ✅ FIXED CHECK
-        if not data or "routePlan" not in data:
-            print("❌ No route found")
-            return
+    if "data" not in data or not data["data"]:
+        print("❌ No route found")
+        return
 
-        print("✅ Route found")
+    print("✅ Route found — ready to swap")
 
-        # (next step later = execute swap)
-
-    except Exception as e:
-        print("BUY ERROR:", e)
+except Exception as e:
+    print("BUY ERROR:", e)
 
 # ===== SELL =====
 def execute_sell(token, reason):

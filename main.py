@@ -283,7 +283,7 @@ def trading_loop():
                     continue
 
                 safe = is_token_safe(token)
-                 print(f"Safe: {safe}")
+                print(f"Safe: {safe}")
 
                 if not safe:
                     print("❌ Not safe")
